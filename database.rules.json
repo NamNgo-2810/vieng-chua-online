@@ -5,8 +5,8 @@
 
     "players": {
       ".read": "auth != null",
+
       "$sessionId": {
-        "//": "A player may only write their own node (sessionId == auth uid).",
         ".write": "auth != null && auth.uid === $sessionId",
         ".validate": "newData.hasChildren(['displayName','role','currentActivity','positionX','positionY','direction','isOnline'])",
 
@@ -31,10 +31,6 @@
         "sessionToken": { ".validate": "newData.isString()" },
         "$other": { ".validate": false }
       }
-    },
-
-    ".info": {
-      "connected": { ".read": "auth != null" }
     }
   }
 }
