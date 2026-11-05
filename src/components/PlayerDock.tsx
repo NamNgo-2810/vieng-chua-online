@@ -40,7 +40,12 @@ export default function PlayerDock() {
           return (
             <button
               key={id}
-              onClick={() => void changeActivity(id)}
+              onClick={(e) => {
+                void changeActivity(id);
+                // Return focus to the game so keyboard movement keeps working
+                // and Space/Enter don't re-trigger this button.
+                e.currentTarget.blur();
+              }}
               aria-pressed={active}
               className={`min-h-[40px] flex-1 rounded-lg px-3 py-2 text-sm font-medium transition sm:flex-none ${
                 active

@@ -73,6 +73,15 @@ export function createGame(parent: HTMLElement): Phaser.Game {
       mode: Phaser.Scale.FIT,
       autoCenter: Phaser.Scale.CENTER_BOTH,
     },
+    input: {
+      keyboard: {
+        // Listen on window (not the canvas) so WASD/arrow keys keep working
+        // after the player clicks a HUD button or anywhere outside the canvas.
+        // Without this, the canvas loses focus and movement stops until it is
+        // clicked again.
+        target: typeof window !== "undefined" ? window : undefined,
+      },
+    },
     scene: [TempleScene],
   });
 }

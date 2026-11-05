@@ -111,6 +111,8 @@ export class TempleScene extends Phaser.Scene {
       left: this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.A),
       right: this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.D),
     };
+    // Capture the movement keys so arrow keys don't scroll the page.
+    this.input.keyboard!.addCapture("UP,DOWN,LEFT,RIGHT,W,A,S,D");
 
     // Subscribe to the store and sync characters.
     const store = useGameStore.getState();
