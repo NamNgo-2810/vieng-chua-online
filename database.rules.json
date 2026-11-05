@@ -1,0 +1,40 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+
+    "players": {
+      ".read": "auth != null",
+      "$sessionId": {
+        "//": "A player may only write their own node (sessionId == auth uid).",
+        ".write": "auth != null && auth.uid === $sessionId",
+        ".validate": "newData.hasChildren(['displayName','role','currentActivity','positionX','positionY','direction','isOnline'])",
+
+        "sessionId": { ".validate": "newData.val() === $sessionId" },
+        "displayName": {
+          ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 24"
+        },
+        "role": {
+          ".validate": "newData.isString() && (newData.val() === 'TRU_TRI' || newData.val() === 'HOA_THUONG' || newData.val() === 'KHACH_THAP_PHUONG')"
+        },
+        "currentActivity": {
+          ".validate": "newData.isString() && newData.val().matches(/^(CHANTING|OFFER_INCENSE|LISTENING|OFFERING|WOODEN_FISH|MEDITATION|RING_BELL|WALKING|PRAYING)$/)"
+        },
+        "positionX": { ".validate": "newData.isNumber()" },
+        "positionY": { ".validate": "newData.isNumber()" },
+        "direction": {
+          ".validate": "newData.isString() && newData.val().matches(/^(up|down|left|right)$/)"
+        },
+        "joinedAt": { ".validate": "newData.isNumber()" },
+        "lastActiveAt": { ".validate": "newData.isNumber()" },
+        "isOnline": { ".validate": "newData.isBoolean()" },
+        "sessionToken": { ".validate": "newData.isString()" },
+        "$other": { ".validate": false }
+      }
+    },
+
+    ".info": {
+      "connected": { ".read": "auth != null" }
+    }
+  }
+}

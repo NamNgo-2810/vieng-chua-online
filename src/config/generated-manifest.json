@@ -1,0 +1,107 @@
+{
+  "generatedAt": "2026-11-05T14:15:30.680Z",
+  "cell": 64,
+  "background": "background/temple-bg.png",
+  "characters": {
+    "HOA_THUONG": {
+      "dir": "characters/hoa_thuong",
+      "walkDirs": "down:0-1,up:3-3,left:6-7,right:6-7",
+      "activities": {
+        "WALKING": {
+          "file": "characters/hoa_thuong/walk.png",
+          "frameWidth": 64,
+          "frameHeight": 64,
+          "frames": 8
+        },
+        "MEDITATION": {
+          "file": "characters/hoa_thuong/meditation.png",
+          "frameWidth": 64,
+          "frameHeight": 64,
+          "frames": 1
+        },
+        "CHANTING": {
+          "file": "characters/hoa_thuong/chanting.png",
+          "frameWidth": 64,
+          "frameHeight": 64,
+          "frames": 1
+        },
+        "OFFER_INCENSE": {
+          "file": "characters/hoa_thuong/offer_incense.png",
+          "frameWidth": 64,
+          "frameHeight": 64,
+          "frames": 1
+        }
+      }
+    },
+    "TRU_TRI": {
+      "dir": "characters/tru_tri",
+      "walkDirs": "down:0-1,up:3-3,left:6-7,right:6-7",
+      "activities": {
+        "WALKING": {
+          "file": "characters/tru_tri/walk.png",
+          "frameWidth": 64,
+          "frameHeight": 64,
+          "frames": 8
+        },
+        "MEDITATION": {
+          "file": "characters/tru_tri/meditation.png",
+          "frameWidth": 64,
+          "frameHeight": 64,
+          "frames": 1
+        },
+        "CHANTING": {
+          "file": "characters/tru_tri/chanting.png",
+          "frameWidth": 64,
+          "frameHeight": 64,
+          "frames": 1
+        },
+        "OFFER_INCENSE": {
+          "file": "characters/tru_tri/offer_incense.png",
+          "frameWidth": 64,
+          "frameHeight": 64,
+          "frames": 1
+        }
+      },
+      "placeholder": true
+    },
+    "KHACH_THAP_PHUONG": {
+      "dir": "characters/khach_thap_phuong",
+      "walkDirs": "down:0-1,up:3-3,left:6-7,right:6-7",
+      "activities": {
+        "WALKING": {
+          "file": "characters/khach_thap_phuong/walk.png",
+          "frameWidth": 64,
+          "frameHeight": 64,
+          "frames": 8
+        },
+        "MEDITATION": {
+          "file": "characters/khach_thap_phuong/meditation.png",
+          "frameWidth": 64,
+          "frameHeight": 64,
+          "frames": 1
+        },
+        "CHANTING": {
+          "file": "characters/khach_thap_phuong/chanting.png",
+          "frameWidth": 64,
+          "frameHeight": 64,
+          "frames": 1
+        },
+        "OFFER_INCENSE": {
+          "file": "characters/khach_thap_phuong/offer_incense.png",
+          "frameWidth": 64,
+          "frameHeight": 64,
+          "frames": 1
+        }
+      },
+      "placeholder": true
+    }
+  },
+  "props": {
+    "incense": "props/incense.png",
+    "tray": "props/tray.png",
+    "woodfish": "props/woodfish.png",
+    "bell": "props/bell.png",
+    "sutra": "props/sutra.png",
+    "cushion": "props/cushion.png"
+  }
+}
