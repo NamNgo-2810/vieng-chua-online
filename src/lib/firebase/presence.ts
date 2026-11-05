@@ -37,6 +37,7 @@ import { reconcilePlayers, resolveTakeover } from "@/lib/presence-core";
 import type { IPresence, JoinOptions, PresenceCallbacks } from "@/lib/presence-types";
 
 const POSITION_SYNC_MS = 120; // ~8 Hz max position writes
+const HEARTBEAT_MS = 20_000; // refresh lastActiveAt every 20s while idle
 
 /** A random token unique to this browser tab, used for takeover detection. */
 const TAB_TOKEN = Math.random().toString(36).slice(2) + Date.now().toString(36);
@@ -55,6 +56,7 @@ export class PresenceManager implements IPresence {
   private local: Player | null = null;
   private pendingPos: { x: number; y: number; dir: Direction } | null = null;
   private posTimer: ReturnType<typeof setInterval> | null = null;
+  private heartbeatTimer: ReturnType<typeof setInterval> | null = null;
   private subscribed = false;
 
   constructor(cbs: PresenceCallbacks) {
@@ -81,6 +83,7 @@ export class PresenceManager implements IPresence {
           if (user) {
             unsub();
             this.sessionId = user.uid;
+            console.info("[presence] authenticated uid:", user.uid, "tab token:", TAB_TOKEN);
             resolve(user.uid);
           }
         },
@@ -133,6 +136,7 @@ export class PresenceManager implements IPresence {
     this.subscribePlayers();
     this.watchTakeover();
     this.startPositionLoop();
+    this.startHeartbeat();
   }
 
   /** `.info/connected` + onDisconnect cleanup, with reconnect re-assert. */
@@ -161,8 +165,15 @@ export class PresenceManager implements IPresence {
     this.subscribed = true;
     onValue(this.playersRef, (snap) => {
       const raw = (snap.val() ?? {}) as Record<string, Partial<Player>>;
+      const reconciled = reconcilePlayers(raw);
+      console.info(
+        "[presence] players update — raw keys:",
+        Object.keys(raw),
+        "| online after reconcile:",
+        Object.keys(reconciled)
+      );
       // Validate, drop offline/stale nodes — shared with the unit-tested core.
-      this.cbs.onPlayers(reconcilePlayers(raw));
+      this.cbs.onPlayers(reconciled);
     });
   }
 
@@ -220,6 +231,26 @@ export class PresenceManager implements IPresence {
     }
   }
 
+  /**
+   * Keep lastActiveAt fresh while idle so other clients never treat a connected
+   * but motionless visitor (meditating, chanting, just standing) as "stale" and
+   * drop them from the online list.
+   */
+  private startHeartbeat() {
+    this.stopHeartbeat();
+    this.heartbeatTimer = setInterval(() => {
+      if (!this.playerRef) return;
+      void update(this.playerRef, { lastActiveAt: serverTimestamp() });
+    }, HEARTBEAT_MS);
+  }
+
+  private stopHeartbeat() {
+    if (this.heartbeatTimer) {
+      clearInterval(this.heartbeatTimer);
+      this.heartbeatTimer = null;
+    }
+  }
+
   getSessionId(): string | null {
     return this.sessionId;
   }
@@ -231,6 +262,7 @@ export class PresenceManager implements IPresence {
   /** Explicit leave: best-effort immediate cleanup. */
   async leave(): Promise<void> {
     this.stopPositionLoop();
+    this.stopHeartbeat();
     try {
       if (this.playerRef) {
         await onDisconnect(this.playerRef).cancel();
@@ -244,6 +276,7 @@ export class PresenceManager implements IPresence {
   /** Detach all listeners (e.g. on unmount). */
   dispose() {
     this.stopPositionLoop();
+    this.stopHeartbeat();
     off(this.connectedRef);
     off(this.playersRef);
     if (this.tokenRef) off(this.tokenRef);

@@ -11,8 +11,14 @@
 import { playerSchema } from "@/lib/validation";
 import type { Player } from "@/lib/types";
 
-/** A visitor is considered stale if no activity/heartbeat within this window. */
-export const PRESENCE_TTL_MS = 60_000;
+/**
+ * A visitor is considered stale if no activity/heartbeat within this window.
+ * Must be comfortably larger than the client heartbeat interval (20s) so an
+ * idle-but-connected visitor is never dropped, and large enough to tolerate
+ * modest client/server clock skew (lastActiveAt is a server timestamp, `now`
+ * is the viewing device's clock).
+ */
+export const PRESENCE_TTL_MS = 120_000;
 
 export interface ReconcileOptions {
   now?: number;
