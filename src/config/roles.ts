@@ -12,6 +12,11 @@ export interface RoleDef {
   label: string;
   /** Short description shown in the onboarding role picker. */
   description: string;
+  /**
+   * Dharma-name prefix prepended to the player's entered name for display
+   * (e.g. a monk's name shows as "Thích <name>"). Empty for lay roles.
+   */
+  namePrefix: string;
 }
 
 export const ROLES: Record<RoleId, RoleDef> = {
@@ -19,18 +24,27 @@ export const ROLES: Record<RoleId, RoleDef> = {
     id: "TRU_TRI",
     label: "Trụ trì",
     description: "Trụ trì chùa — chủ trì mọi nghi lễ.",
+    namePrefix: "Thích",
   },
   HOA_THUONG: {
     id: "HOA_THUONG",
     label: "Hòa thượng",
     description: "Hòa thượng — tụng kinh, thiền định, gõ mõ.",
+    namePrefix: "Thích",
   },
   KHACH_THAP_PHUONG: {
     id: "KHACH_THAP_PHUONG",
     label: "Khách thập phương",
     description: "Khách đến vãn cảnh, dâng hương, cầu nguyện.",
+    namePrefix: "",
   },
 };
+
+/** Apply a role's display prefix to an already-sanitized name. */
+export function withRolePrefix(role: RoleId, name: string): string {
+  const prefix = ROLES[role]?.namePrefix ?? "";
+  return prefix ? `${prefix} ${name}` : name;
+}
 
 export const ROLE_LIST: RoleDef[] = ROLE_IDS.map((id) => ROLES[id]);
 

@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Image from "next/image";
 import { useGameStore } from "@/state/store";
-import { ENABLED_ROLES, DEFAULT_ROLE, ROLES, type RoleId } from "@/config/roles";
+import { ENABLED_ROLES, DEFAULT_ROLE, ROLES, withRolePrefix, type RoleId } from "@/config/roles";
 import { activityAtlas } from "@/config/asset-manifest";
 import { validateDisplayName, DISPLAY_NAME_MAX } from "@/lib/validation";
 
@@ -22,16 +22,25 @@ export default function OnboardingFlow() {
 
   const previewAtlas = activityAtlas(role, "WALKING");
 
+  const prefix = ROLES[role].namePrefix; // e.g. "Thích" for monks
+
   const onEnter = async () => {
     const result = validateDisplayName(name);
     if (!result.ok) {
       setError(result.error);
       return;
     }
+    // Prepend the role's Dharma-name prefix for display (e.g. "Thích An").
+    const finalName = withRolePrefix(role, result.value);
+    // The prefixed name must still satisfy the stored-name length limit.
+    if (finalName.length > DISPLAY_NAME_MAX) {
+      setError(`Tên (kèm "${prefix}") tối đa ${DISPLAY_NAME_MAX} ký tự.`);
+      return;
+    }
     setError(null);
     setSubmitting(true);
     try {
-      await enterTemple(result.value, role);
+      await enterTemple(finalName, role);
     } finally {
       setSubmitting(false);
     }
@@ -58,14 +67,26 @@ export default function OnboardingFlow() {
         <label className="mb-1 block text-sm font-medium text-temple-ink" htmlFor="displayName">
           Tên hiển thị
         </label>
-        <input
-          id="displayName"
-          value={name}
-          maxLength={DISPLAY_NAME_MAX}
-          onChange={(e) => setName(e.target.value)}
-          placeholder="Nhập tên của bạn"
-          className="mb-4 w-full rounded-lg border border-temple-wood/30 bg-white px-3 py-2 text-temple-ink outline-none focus:ring-2 focus:ring-temple-gold"
-        />
+        <div className="mb-1 flex items-stretch overflow-hidden rounded-lg border border-temple-wood/30 bg-white focus-within:ring-2 focus-within:ring-temple-gold">
+          {prefix && (
+            <span className="flex select-none items-center bg-temple-gold/15 px-3 text-sm font-medium text-temple-wood">
+              {prefix}
+            </span>
+          )}
+          <input
+            id="displayName"
+            value={name}
+            maxLength={prefix ? DISPLAY_NAME_MAX - (prefix.length + 1) : DISPLAY_NAME_MAX}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="Nhập tên của bạn"
+            className="w-full bg-transparent px-3 py-2 text-temple-ink outline-none"
+          />
+        </div>
+        {prefix && (
+          <p className="mb-3 text-xs text-temple-wood/70">
+            Tên hiển thị sẽ là: <strong>{withRolePrefix(role, name.trim() || "...")}</strong>
+          </p>
+        )}
 
         {multiRole ? (
           <fieldset className="mb-4">
