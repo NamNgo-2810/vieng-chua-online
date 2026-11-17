@@ -1,9 +1,11 @@
 import * as Phaser from "phaser";
-import { activityAtlas, CELL_SIZE } from "@/config/asset-manifest";
+import { CELL_SIZE } from "@/config/asset-manifest";
 import type { RoleId } from "@/config/roles";
+import type { AppearanceId } from "@/config/appearances";
 import { ACTIVITIES, type ActivityId } from "@/config/activities";
 import type { Direction } from "@/lib/types";
-import { animFor } from "./anim";
+import { animFor, PROP_DEFAULTS } from "./anim";
+import { lookTextureKey, walkAnimKey } from "./placeholder-sprites";
 
 /**
  * A reusable in-world character. Encapsulates everything about one player's
@@ -18,6 +20,10 @@ export interface CharacterInit {
   scene: Phaser.Scene;
   sessionId: string;
   role: RoleId;
+  /** How the character looks (resolved from role + stored appearance). */
+  appearance: AppearanceId;
+  /** Sandals left at the Tam quan: drawn barefoot. */
+  barefoot?: boolean;
   displayName: string;
   activity: ActivityId;
   x: number;
@@ -36,6 +42,8 @@ export class Character {
   private prop?: Phaser.GameObjects.Image;
 
   private role: RoleId;
+  private look: AppearanceId;
+  private barefoot: boolean;
   private activity: ActivityId;
   private direction: Direction = "down";
   private isLocal: boolean;
@@ -43,6 +51,15 @@ export class Character {
   // Smoothing targets for remote movement.
   targetX: number;
   targetY: number;
+
+  // Speech bubble (chat). Lives outside the container at a high depth so other
+  // characters never cover it; syncBubble() keeps it over the head.
+  private bubble?: Phaser.GameObjects.Text;
+  private bubbleTimer?: Phaser.Time.TimerEvent;
+  /** Greeting icon over the head (chắp tay, vái, vẫy tay). */
+  private emoteIcon?: Phaser.GameObjects.Text;
+  /** Golden ring shown while practising together with others (đồng tu). */
+  private groupRing?: Phaser.GameObjects.Ellipse;
 
   // Animation helpers (tweens we must stop on activity change).
   private bobTween?: Phaser.Tweens.Tween;
@@ -52,6 +69,8 @@ export class Character {
     this.scene = init.scene;
     this.sessionId = init.sessionId;
     this.role = init.role;
+    this.look = init.appearance;
+    this.barefoot = init.barefoot ?? false;
     this.activity = init.activity;
     this.isLocal = init.isLocal;
     this.targetX = init.x;
@@ -64,7 +83,7 @@ export class Character {
       .ellipse(0, -2, CELL_SIZE * 0.5, CELL_SIZE * 0.18, 0x000000, 0.22)
       .setOrigin(0.5, 0.5);
 
-    this.body = s.add.sprite(0, 0, this.textureKey(init.role, init.activity));
+    this.body = s.add.sprite(0, 0, this.textureKey(init.activity));
     this.body.setOrigin(0.5, 1);
 
     this.label = s.add
@@ -89,16 +108,18 @@ export class Character {
     this.applyActivity(init.activity, true);
   }
 
-  private textureKey(role: RoleId, activity: ActivityId): string {
-    const key = `char-${role}-${activity}`;
+  private textureKey(activity: ActivityId): string {
+    const key = lookTextureKey(this.look, activity, this.barefoot);
     if (this.scene.textures.exists(key)) return key;
-    return `char-${role}-WALKING`;
+    return lookTextureKey(this.look, "WALKING", this.barefoot);
   }
 
   /** The networked state changed; reconcile only what differs. */
   update(opts: {
     displayName: string;
     role: RoleId;
+    appearance: AppearanceId;
+    barefoot?: boolean;
     activity: ActivityId;
     direction: Direction;
     x: number;
@@ -106,8 +127,11 @@ export class Character {
   }) {
     if (this.label.text !== opts.displayName) this.label.setText(opts.displayName);
 
-    if (opts.activity !== this.activity || opts.role !== this.role) {
+    const bare = opts.barefoot ?? false;
+    if (opts.activity !== this.activity || opts.role !== this.role || opts.appearance !== this.look || bare !== this.barefoot) {
       this.role = opts.role;
+      this.look = opts.appearance;
+      this.barefoot = bare;
       this.applyActivity(opts.activity, false);
     }
 
@@ -134,7 +158,7 @@ export class Character {
 
   /** Play (or restart) the walk cycle for the current facing, if available. */
   private playWalk() {
-    const animKey = `walk-${this.role}-${this.direction}`;
+    const animKey = walkAnimKey(this.look, this.direction, this.barefoot);
     if (this.scene.anims.exists(animKey)) {
       if (this.body.anims.getName() !== animKey || !this.body.anims.isPlaying) {
         this.body.play(animKey, true);
@@ -144,7 +168,7 @@ export class Character {
 
   /** Freeze the body on the first frame of the current facing (idle stand). */
   private restWalkFrame() {
-    const animKey = `walk-${this.role}-${this.direction}`;
+    const animKey = walkAnimKey(this.look, this.direction, this.barefoot);
     const anim = this.scene.anims.get(animKey);
     this.body.stop();
     if (anim && anim.frames.length > 0) {
@@ -198,14 +222,13 @@ export class Character {
     if (behaviour.style !== "walk") this.body.setFlipX(false);
 
     // Swap the body texture to the activity's sheet (falls back to walk).
-    const key = this.textureKey(this.role, activity);
+    const key = this.textureKey(activity);
     if (this.body.texture.key !== key) this.body.setTexture(key);
 
     // Directional walk cycle (one 2-frame step per facing). Start on the
     // current facing's resting frame; the scene calls setMoving(true) to make
     // the legs actually cycle while the player is moving.
-    const atlas = activityAtlas(this.role, activity);
-    if (behaviour.style === "walk" && atlas && atlas.frames > 1) {
+    if (behaviour.style === "walk" && this.scene.anims.exists(walkAnimKey(this.look, this.direction, this.barefoot))) {
       this.restWalkFrame();
     }
 
@@ -255,8 +278,13 @@ export class Character {
     this.prop?.destroy();
     this.prop = undefined;
 
-    const placement = animFor(activity).prop;
+    const behaviour = animFor(activity);
+    const placement = behaviour.prop;
     if (placement === "none") return;
+    const d = PROP_DEFAULTS[placement];
+    const scale = behaviour.propScale ?? d.scale;
+    const px = (behaviour.propX ?? d.x) * CELL_SIZE;
+    const py = (behaviour.propY ?? d.y) * CELL_SIZE;
 
     const propKey = ACTIVITIES[activity].prop;
     if (!propKey) return;
@@ -267,14 +295,14 @@ export class Character {
       // A ground item the character sits on (meditation cushion). Draw it
       // behind the body and anchored under the feet so the monk sits ON it,
       // never over his face.
-      this.prop = this.scene.add.image(0, 2, texKey);
-      this.prop.setOrigin(0.5, 1).setScale(0.6);
+      this.prop = this.scene.add.image(px, py, texKey);
+      this.prop.setOrigin(0.5, 1).setScale(scale);
       // Place just above the shadow (index 0) but below the body.
       this.container.addAt(this.prop, 1);
     } else {
       // Held in front at hand/chest height.
-      this.prop = this.scene.add.image(CELL_SIZE * 0.34, -CELL_SIZE * 0.42, texKey);
-      this.prop.setOrigin(0.5, 1).setScale(0.45);
+      this.prop = this.scene.add.image(px, py, texKey);
+      this.prop.setOrigin(0.5, 1).setScale(scale);
       // Insert just under the label so it sits in front of the body.
       this.container.addAt(this.prop, this.container.length - 1);
     }
@@ -303,7 +331,74 @@ export class Character {
     }
   }
 
+  /** Show a chat bubble over the head for `ms`, replacing any current one. */
+  showBubble(text: string, ms: number) {
+    this.clearBubble();
+    this.bubble = this.scene.add
+      .text(0, 0, text, {
+        fontFamily: "monospace",
+        fontSize: "12px",
+        color: "#2b2119",
+        backgroundColor: "#fffaf0f2",
+        padding: { x: 6, y: 4 },
+        align: "center",
+        wordWrap: { width: 170, useAdvancedWrap: true },
+      })
+      .setOrigin(0.5, 1)
+      .setDepth(4500);
+    this.syncBubble();
+    this.bubbleTimer = this.scene.time.delayedCall(ms, () => this.clearBubble());
+  }
+
+  /** Keep the bubble and greeting above the name label (call every frame). */
+  syncBubble() {
+    if (this.bubble) this.bubble.setPosition(this.container.x, this.container.y - CELL_SIZE - 26);
+    if (this.emoteIcon) this.emoteIcon.setPosition(this.container.x + 22, this.container.y - CELL_SIZE + 4);
+  }
+
+  /** Show a greeting: an icon by the head and a small gesture of the body. */
+  showEmote(icon: string, kind: "bow" | "wave" | "hands", ms: number) {
+    this.emoteIcon?.destroy();
+    this.emoteIcon = this.scene.add.text(0, 0, icon, { fontSize: "20px" }).setOrigin(0.5, 1).setDepth(4550);
+    this.syncBubble();
+    this.scene.tweens.add({ targets: this.emoteIcon, scale: { from: 0.4, to: 1 }, duration: 220, ease: "Back.out" });
+    if (kind === "bow") {
+      this.scene.tweens.add({ targets: this.body, scaleY: 0.88, y: 2, duration: 260, yoyo: true, hold: 500, ease: "Sine.inOut" });
+    } else if (kind === "wave") {
+      this.scene.tweens.add({ targets: this.body, angle: 6, duration: 160, yoyo: true, repeat: 3, ease: "Sine.inOut" });
+    } else {
+      this.scene.tweens.add({ targets: this.body, y: -3, duration: 240, yoyo: true, ease: "Sine.inOut" });
+    }
+    const icon$ = this.emoteIcon;
+    this.scene.time.delayedCall(ms, () => {
+      if (this.emoteIcon !== icon$) return;
+      this.scene.tweens.add({ targets: icon$, alpha: 0, duration: 300, onComplete: () => icon$.destroy() });
+      this.emoteIcon = undefined;
+    });
+  }
+
+  /** Turn the đồng tu ring on or off. */
+  setGroupGlow(on: boolean) {
+    if (on && !this.groupRing) {
+      this.groupRing = this.scene.add.ellipse(0, -2, CELL_SIZE * 0.9, CELL_SIZE * 0.32).setStrokeStyle(2, 0xf3d27a, 0.9);
+      this.container.addAt(this.groupRing, 0);
+      this.scene.tweens.add({ targets: this.groupRing, alpha: 0.35, duration: 900, yoyo: true, repeat: -1, ease: "Sine.inOut" });
+    } else if (!on && this.groupRing) {
+      this.groupRing.destroy();
+      this.groupRing = undefined;
+    }
+  }
+
+  private clearBubble() {
+    this.bubbleTimer?.remove();
+    this.bubbleTimer = undefined;
+    this.bubble?.destroy();
+    this.bubble = undefined;
+  }
+
   destroy() {
+    this.clearBubble();
+    this.emoteIcon?.destroy();
     this.bobTween?.remove();
     this.pulseTween?.remove();
     this.container.destroy();

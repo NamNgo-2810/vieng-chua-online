@@ -19,6 +19,7 @@ export function makePlayer(over: Partial<Player> = {}): Player {
     joinedAt: over.joinedAt ?? now,
     lastActiveAt: over.lastActiveAt ?? now,
     isOnline: over.isOnline ?? true,
+    ...(over.appearance ? { appearance: over.appearance } : {}),
   };
 }
 

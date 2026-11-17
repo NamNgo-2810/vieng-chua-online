@@ -10,7 +10,10 @@
 
 let ctx: AudioContext | null = null;
 
-function getCtx(): AudioContext | null {
+import { trace } from "./sound-trace";
+
+/** The one shared AudioContext (null on the server or without Web Audio). */
+export function getCtx(): AudioContext | null {
   if (typeof window === "undefined") return null;
   if (!ctx) {
     const AC = window.AudioContext || (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
@@ -45,6 +48,7 @@ const TONES: Record<SfxName, Tone> = {
 export function playSfx(name: SfxName, volume: number): void {
   const audioCtx = getCtx();
   if (!audioCtx || volume <= 0) return;
+  trace(name);
   const t = TONES[name] ?? TONES.generic;
 
   const now = audioCtx.currentTime;
@@ -75,6 +79,99 @@ export function playSfx(name: SfxName, volume: number): void {
     osc2.start(now + 0.16);
     osc2.stop(now + 0.32);
   }
+}
+
+/**
+ * One woodblock knock for the wooden fish (mõ): two short wooden partials and a
+ * click of noise, louder and crisper than the gentle tones above so a rhythm
+ * of knocks reads clearly over the music.
+ */
+export function playWoodKnock(volume: number): void {
+  const audioCtx = getCtx();
+  if (!audioCtx || volume <= 0) return;
+  trace("woodKnock");
+  const now = audioCtx.currentTime;
+  const peak = Math.min(1, Math.max(0, volume)) * 0.6;
+  const out = audioCtx.createGain();
+  out.gain.value = 1;
+  out.connect(audioCtx.destination);
+
+  for (const [freq, level, decay] of [[1040, 1, 0.07], [620, 0.7, 0.11]] as const) {
+    const osc = audioCtx.createOscillator();
+    const g = audioCtx.createGain();
+    osc.type = "sine";
+    osc.frequency.setValueAtTime(freq, now);
+    osc.frequency.exponentialRampToValueAtTime(freq * 0.92, now + decay);
+    g.gain.setValueAtTime(0, now);
+    g.gain.linearRampToValueAtTime(peak * level, now + 0.002);
+    g.gain.exponentialRampToValueAtTime(0.0001, now + decay);
+    osc.connect(g).connect(out);
+    osc.start(now);
+    osc.stop(now + decay + 0.02);
+  }
+
+  // The attack click: a few milliseconds of band-passed noise.
+  const len = Math.floor(audioCtx.sampleRate * 0.015);
+  const buf = audioCtx.createBuffer(1, len, audioCtx.sampleRate);
+  const data = buf.getChannelData(0);
+  for (let i = 0; i < len; i++) data[i] = (Math.random() * 2 - 1) * (1 - i / len);
+  const noise = audioCtx.createBufferSource();
+  noise.buffer = buf;
+  const band = audioCtx.createBiquadFilter();
+  band.type = "bandpass";
+  band.frequency.value = 2200;
+  const ng = audioCtx.createGain();
+  ng.gain.value = peak * 0.5;
+  noise.connect(band).connect(ng).connect(out);
+  noise.start(now);
+}
+
+/**
+ * One toll of the great bronze bell (đại hồng chung): bell partials (hum,
+ * prime, tierce, quint, nominal) with the low ones ringing longest, plus the
+ * soft thump of the log striker.
+ */
+export function playGreatBell(volume: number): void {
+  const audioCtx = getCtx();
+  if (!audioCtx || volume <= 0) return;
+  trace("greatBell");
+  const now = audioCtx.currentTime;
+  const peak = Math.min(1, Math.max(0, volume)) * 0.5;
+  const base = 130;
+  const partials: [number, number, number][] = [
+    [0.5, 0.9, 7], // hum
+    [1, 1, 5.5], // prime
+    [1.2, 0.5, 4], // minor-third tierce
+    [1.5, 0.35, 3.5], // quint
+    [2, 0.45, 3], // nominal
+    [2.74, 0.2, 2],
+  ];
+  for (const [ratio, level, decay] of partials) {
+    const osc = audioCtx.createOscillator();
+    const g = audioCtx.createGain();
+    osc.type = "sine";
+    osc.frequency.setValueAtTime(base * ratio, now);
+    g.gain.setValueAtTime(0, now);
+    g.gain.linearRampToValueAtTime(peak * level, now + 0.008);
+    g.gain.exponentialRampToValueAtTime(0.0001, now + decay);
+    osc.connect(g).connect(audioCtx.destination);
+    osc.start(now);
+    osc.stop(now + decay + 0.1);
+  }
+  // Thump of the wooden log.
+  const len = Math.floor(audioCtx.sampleRate * 0.08);
+  const buf = audioCtx.createBuffer(1, len, audioCtx.sampleRate);
+  const data = buf.getChannelData(0);
+  for (let i = 0; i < len; i++) data[i] = (Math.random() * 2 - 1) * (1 - i / len) ** 2;
+  const noise = audioCtx.createBufferSource();
+  noise.buffer = buf;
+  const low = audioCtx.createBiquadFilter();
+  low.type = "lowpass";
+  low.frequency.value = 300;
+  const ng = audioCtx.createGain();
+  ng.gain.value = peak * 0.8;
+  noise.connect(low).connect(ng).connect(audioCtx.destination);
+  noise.start(now);
 }
 
 /** Map an activity's sfx key (from config) to a synthesized effect. */

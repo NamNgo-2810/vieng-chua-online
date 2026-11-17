@@ -7,12 +7,15 @@
 import { z } from "zod";
 import { ROLE_IDS } from "@/config/roles";
 import { ACTIVITY_IDS } from "@/config/activities";
+import { APPEARANCE_IDS } from "@/config/appearances";
+import { AREA_IDS } from "@/config/areas";
+import { EMOTE_IDS } from "@/config/emotes";
 
 export const DISPLAY_NAME_MIN = 1;
 export const DISPLAY_NAME_MAX = 24;
 
 /** A small, conservative profanity list (extend as needed). */
-const BANNED_WORDS = ["fuck", "shit", "bitch", "cunt", "asshole"];
+export const BANNED_WORDS: readonly string[] = ["fuck", "shit", "bitch", "cunt", "asshole"];
 
 /**
  * Strip HTML/control characters and collapse whitespace. Does NOT enforce
@@ -34,6 +37,7 @@ export function containsProfanity(name: string): boolean {
 export const direction = z.enum(["up", "down", "left", "right"]);
 export const roleId = z.enum(ROLE_IDS);
 export const activityId = z.enum(ACTIVITY_IDS);
+export const appearanceId = z.enum(APPEARANCE_IDS);
 
 export const displayNameSchema = z
   .string()
@@ -55,12 +59,24 @@ export function validateDisplayName(raw: string):
   return { ok: false, error: result.error.issues[0]?.message ?? "Tên không hợp lệ." };
 }
 
-/** Shape of a player node in RTDB. */
+
+/**
+ * Shape of a player node in RTDB. `appearance` is checked as a known look only:
+ * a look that does not match the role is not rejected (that would hide the
+ * player); it is drawn as the role's default by resolveAppearance.
+ */
 export const playerSchema = z.object({
   sessionId: z.string().min(1),
   displayName: displayNameSchema,
   role: roleId,
+  appearance: appearanceId.optional(),
   currentActivity: activityId,
+  activityStartedAt: z.number().finite().optional(),
+  area: z.enum(AREA_IDS).optional(),
+  emote: z.enum(EMOTE_IDS).optional(),
+  shoesOff: z.boolean().optional(),
+  washed: z.boolean().optional(),
+  emoteAt: z.number().finite().optional(),
   positionX: z.number().finite(),
   positionY: z.number().finite(),
   direction,

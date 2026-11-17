@@ -53,11 +53,11 @@ export function isRoleId(value: unknown): value is RoleId {
 }
 
 /**
- * Roles currently offered to players. Temporarily limited to the Monk while we
- * iterate; the other role definitions above stay intact so they can be
- * re-enabled by just adding their IDs back here.
+ * Roles offered to players at join, in picker order. The first is the default.
+ * All three are on now that each has its own look (config/appearances.ts);
+ * remove an ID here to hide a role without touching its definition.
  */
-export const ENABLED_ROLE_IDS: readonly RoleId[] = ["HOA_THUONG"] as const;
+export const ENABLED_ROLE_IDS: readonly RoleId[] = ["HOA_THUONG", "TRU_TRI", "KHACH_THAP_PHUONG"] as const;
 
 export const ENABLED_ROLES: RoleDef[] = ENABLED_ROLE_IDS.map((id) => ROLES[id]);
 

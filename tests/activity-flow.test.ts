@@ -81,3 +81,37 @@ describe("lifecycle: leave + rejoin (reconnection analogue)", () => {
     presence.dispose();
   });
 });
+
+describe("regression: local player snapshots are immutable (dock showed stale activity)", () => {
+  const noop = { onConnection: () => {}, onPlayers: () => {}, onTakenOver: () => {} };
+
+  it("changing activity gives a new local player object and leaves the old one untouched", async () => {
+    const lp = new LocalPresence(noop);
+    await lp.join({ displayName: "Tâm", role: "TRU_TRI", spawnX: 0, spawnY: 0 });
+    const before = lp.getLocal()!;
+
+    await lp.changeActivity("OFFERING");
+    const after = lp.getLocal()!;
+
+    expect(after).not.toBe(before);
+    expect(before.currentActivity).toBe("WALKING");
+    expect(after.currentActivity).toBe("OFFERING");
+    lp.dispose();
+  });
+
+  it("each players broadcast carries fresh player objects", async () => {
+    const seen: Record<string, import("@/lib/types").Player>[] = [];
+    const lp = new LocalPresence({ ...noop, onPlayers: (p) => seen.push(p) });
+    await lp.join({ displayName: "Lan", role: "KHACH_THAP_PHUONG", spawnX: 0, spawnY: 0 });
+    const id = lp.getSessionId()!;
+    const first = seen[seen.length - 1][id];
+
+    await lp.changeActivity("OFFER_INCENSE");
+    const second = seen[seen.length - 1][id];
+
+    expect(second).not.toBe(first);
+    expect(first.currentActivity).toBe("WALKING");
+    expect(second.currentActivity).toBe("OFFER_INCENSE");
+    lp.dispose();
+  });
+});

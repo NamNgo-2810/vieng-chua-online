@@ -14,6 +14,7 @@
  * The store (src/state) is the only consumer; UI/game never call this directly.
  */
 
+import { resolveAppearance } from "@/config/appearances";
 import { signInAnonymously, onAuthStateChanged } from "firebase/auth";
 import {
   ref,
@@ -31,6 +32,9 @@ import {
 import { getFirebase } from "./client";
 import type { Player, Direction } from "@/lib/types";
 import type { ActivityId } from "@/config/activities";
+import type { AreaId } from "@/config/areas";
+import type { EmoteId } from "@/config/emotes";
+import { purityFlagFor } from "@/config/purity";
 import { DEFAULT_ACTIVITY, canPerform } from "@/config/permissions";
 import { playerSchema } from "@/lib/validation";
 import { reconcilePlayers, resolveTakeover } from "@/lib/presence-core";
@@ -58,6 +62,8 @@ export class PresenceManager implements IPresence {
   private posTimer: ReturnType<typeof setInterval> | null = null;
   private heartbeatTimer: ReturnType<typeof setInterval> | null = null;
   private subscribed = false;
+  /** True during an area change: moves from the old area are ignored. */
+  private changingArea = false;
 
   constructor(cbs: PresenceCallbacks) {
     const { db } = getFirebase();
@@ -108,7 +114,10 @@ export class PresenceManager implements IPresence {
       sessionId: sid,
       displayName: opts.displayName,
       role: opts.role,
+      appearance: resolveAppearance(opts.role, opts.appearance),
+      area: opts.area ?? "COURTYARD",
       currentActivity: DEFAULT_ACTIVITY,
+      activityStartedAt: now,
       positionX: opts.spawnX,
       positionY: opts.spawnY,
       direction: "down",
@@ -129,6 +138,7 @@ export class PresenceManager implements IPresence {
       ...player,
       joinedAt: serverTimestamp(),
       lastActiveAt: serverTimestamp(),
+      activityStartedAt: serverTimestamp(),
       sessionToken: TAB_TOKEN,
     });
 
@@ -193,16 +203,64 @@ export class PresenceManager implements IPresence {
     if (!this.playerRef || !this.local) return false;
     if (!canPerform(this.local.role, activity)) return false;
     this.local.currentActivity = activity;
+    this.local.activityStartedAt = Date.now();
+    const flag = purityFlagFor(activity);
+    if (flag) this.local[flag] = true;
+    // Send any queued position with the activity, so the stored position is
+    // already the ritual spot (the merit rules check it).
+    const pos = this.pendingPos;
+    this.pendingPos = null;
     await update(this.playerRef, {
       currentActivity: activity,
+      activityStartedAt: serverTimestamp(),
       lastActiveAt: serverTimestamp(),
+      ...(pos ? { positionX: pos.x, positionY: pos.y, direction: pos.dir } : {}),
+      ...(flag ? { [flag]: true } : {}),
     });
+    return true;
+  }
+
+  /** Walk through a gate: new area and position, activity back to walking, in one write. */
+  async changeArea(area: AreaId, x: number, y: number, dir: Direction): Promise<boolean> {
+    if (!this.playerRef || !this.local) return false;
+    // Moves made while the change is in flight belong to the old area.
+    this.changingArea = true;
+    this.pendingPos = null;
+    try {
+      await update(this.playerRef, {
+        area,
+        positionX: x,
+        positionY: y,
+        direction: dir,
+        currentActivity: "WALKING",
+        activityStartedAt: serverTimestamp(),
+        lastActiveAt: serverTimestamp(),
+      });
+    } catch (err) {
+      console.warn("[presence] area change refused:", err);
+      return false;
+    } finally {
+      this.pendingPos = null;
+      this.changingArea = false;
+    }
+    Object.assign(this.local, { area, positionX: x, positionY: y, direction: dir, currentActivity: "WALKING", activityStartedAt: Date.now() });
+    return true;
+  }
+
+  async emote(emote: EmoteId): Promise<boolean> {
+    if (!this.playerRef || !this.local) return false;
+    try {
+      await update(this.playerRef, { emote, emoteAt: serverTimestamp() });
+    } catch {
+      return false;
+    }
+    Object.assign(this.local, { emote, emoteAt: Date.now() });
     return true;
   }
 
   /** Queue a position update; flushed on the throttle timer. */
   move(x: number, y: number, dir: Direction) {
-    if (!this.local) return;
+    if (!this.local || this.changingArea) return;
     this.pendingPos = { x, y, dir };
     this.local.positionX = x;
     this.local.positionY = y;
@@ -255,8 +313,12 @@ export class PresenceManager implements IPresence {
     return this.sessionId;
   }
 
+  /**
+   * A snapshot copy of the local player (never the mutable internal object), so
+   * the store sees activity changes immediately instead of after the RTDB echo.
+   */
   getLocal(): Player | null {
-    return this.local;
+    return this.local ? { ...this.local } : null;
   }
 
   /** Explicit leave: best-effort immediate cleanup. */

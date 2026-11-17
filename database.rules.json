@@ -2,34 +2,185 @@
   "rules": {
     ".read": false,
     ".write": false,
-
     "players": {
       ".read": "auth != null",
-
       "$sessionId": {
         ".write": "auth != null && auth.uid === $sessionId",
         ".validate": "newData.hasChildren(['displayName','role','currentActivity','positionX','positionY','direction','isOnline'])",
-
-        "sessionId": { ".validate": "newData.val() === $sessionId" },
+        "sessionId": {
+          ".validate": "newData.val() === $sessionId"
+        },
         "displayName": {
           ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 24"
         },
         "role": {
           ".validate": "newData.isString() && (newData.val() === 'TRU_TRI' || newData.val() === 'HOA_THUONG' || newData.val() === 'KHACH_THAP_PHUONG')"
         },
-        "currentActivity": {
-          ".validate": "newData.isString() && newData.val().matches(/^(CHANTING|OFFER_INCENSE|LISTENING|OFFERING|WOODEN_FISH|MEDITATION|RING_BELL|WALKING|PRAYING)$/)"
+        "appearance": {
+          ".validate": "newData.isString() && newData.val().matches(/^(MONK|ABBOT|LAY_WOMAN|LAY_MAN|LAY_ELDER|LAY_CHILD)$/)"
         },
-        "positionX": { ".validate": "newData.isNumber()" },
-        "positionY": { ".validate": "newData.isNumber()" },
+        "currentActivity": {
+          ".validate": "newData.isString() && newData.val().matches(/^(CHANTING|OFFER_INCENSE|LISTENING|OFFERING|WOODEN_FISH|MEDITATION|RING_BELL|WALKING|PRAYING|RELEASE_LANTERN|STRIKE_GREAT_BELL|OFFER_TEA|WALKING_MEDITATION|SIGN_GUESTBOOK|DONATE|RELEASE_FISH|FEED_FISH|READ_SUTRA|DRAW_FORTUNE|HANG_WISH|REMOVE_SHOES|WASH_HANDS_FEET|BATHE_BUDDHA|PICK_PEACH|FEED_MONKEYS)$/)"
+        },
+        "activityStartedAt": {
+          ".validate": "newData.val() === now"
+        },
+        "positionX": {
+          ".validate": "newData.isNumber()"
+        },
+        "positionY": {
+          ".validate": "newData.isNumber()"
+        },
         "direction": {
           ".validate": "newData.isString() && newData.val().matches(/^(up|down|left|right)$/)"
         },
-        "joinedAt": { ".validate": "newData.isNumber()" },
-        "lastActiveAt": { ".validate": "newData.isNumber()" },
-        "isOnline": { ".validate": "newData.isBoolean()" },
-        "sessionToken": { ".validate": "newData.isString()" },
-        "$other": { ".validate": false }
+        "joinedAt": {
+          ".validate": "newData.isNumber()"
+        },
+        "lastActiveAt": {
+          ".validate": "newData.isNumber()"
+        },
+        "isOnline": {
+          ".validate": "newData.isBoolean()"
+        },
+        "sessionToken": {
+          ".validate": "newData.isString()"
+        },
+        "$other": {
+          ".validate": false
+        },
+        "area": {
+          ".validate": "newData.isString() && ((newData.val() === 'COURTYARD') || (newData.val() === 'MAIN_HALL' && root.child('templeMerit').child('total').val() >= 5 && newData.parent().child('shoesOff').val() === true && newData.parent().child('washed').val() === true) || (newData.val() === 'LOTUS_GARDEN' && root.child('templeMerit').child('total').val() >= 15) || (newData.val() === 'BELL_TOWER' && root.child('templeMerit').child('total').val() >= 25) || (newData.val() === 'ANCESTOR_HALL' && root.child('templeMerit').child('total').val() >= 35 && newData.parent().child('shoesOff').val() === true && newData.parent().child('washed').val() === true) || (newData.val() === 'BAMBOO_GROVE' && root.child('templeMerit').child('total').val() >= 50) || (newData.val() === 'TAM_QUAN') || (newData.val() === 'RELEASE_POND' && root.child('templeMerit').child('total').val() >= 20) || (newData.val() === 'SUTRA_LIBRARY' && root.child('templeMerit').child('total').val() >= 40 && newData.parent().child('shoesOff').val() === true && newData.parent().child('washed').val() === true) || (newData.val() === 'QUAN_AM_HILL' && root.child('templeMerit').child('total').val() >= 45) || (newData.val() === 'HOA_QUA_SON' && root.child('templeMerit').child('total').val() >= 54))"
+        },
+        "emote": {
+          ".validate": "newData.isString() && newData.val().matches(/^(CHAP_TAY|VAI|VAY_TAY)$/)"
+        },
+        "emoteAt": {
+          ".validate": "newData.val() === now"
+        },
+        "shoesOff": {
+          ".validate": "newData.isBoolean() && (newData.val() === true || !data.exists() || data.val() === false)"
+        },
+        "washed": {
+          ".validate": "newData.isBoolean() && (newData.val() === true || !data.exists() || data.val() === false)"
+        }
+      }
+    },
+    "chat": {
+      ".read": "auth != null",
+      ".indexOn": [
+        "createdAt"
+      ],
+      "$msgId": {
+        ".write": "auth != null && ((!data.exists() && newData.child('sessionId').val() === auth.uid && newData.parent().parent().child('chatThrottle').child(auth.uid).val() === now) || (!newData.exists() && data.child('createdAt').val() < now - 3600000))",
+        ".validate": "newData.hasChildren(['sessionId','displayName','text','createdAt'])",
+        "sessionId": {
+          ".validate": "newData.isString()"
+        },
+        "displayName": {
+          ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 24"
+        },
+        "text": {
+          ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 120"
+        },
+        "createdAt": {
+          ".validate": "newData.val() === now"
+        },
+        "$other": {
+          ".validate": false
+        }
+      }
+    },
+    "chatThrottle": {
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        ".write": "auth != null && auth.uid === $uid",
+        ".validate": "newData.val() === now && (!data.exists() || newData.val() >= data.val() + 2000)"
+      }
+    },
+    "merit": {
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        ".write": "auth != null && auth.uid === $uid",
+        "total": {
+          ".validate": "newData.isNumber() && newData.val() > (data.exists() ? data.val() : 0) && newData.val() <= (data.exists() ? data.val() : 0) + 15 && newData.parent().child('lastAwardAt').val() === now && (newData.parent().child('lastAward').child('CHANTING').val() === now || newData.parent().child('lastAward').child('OFFER_INCENSE').val() === now || newData.parent().child('lastAward').child('LISTENING').val() === now || newData.parent().child('lastAward').child('OFFERING').val() === now || newData.parent().child('lastAward').child('WOODEN_FISH').val() === now || newData.parent().child('lastAward').child('MEDITATION').val() === now || newData.parent().child('lastAward').child('RING_BELL').val() === now || newData.parent().child('lastAward').child('PRAYING').val() === now || newData.parent().child('lastAward').child('RELEASE_LANTERN').val() === now || newData.parent().child('lastAward').child('STRIKE_GREAT_BELL').val() === now || newData.parent().child('lastAward').child('OFFER_TEA').val() === now || newData.parent().child('lastAward').child('WALKING_MEDITATION').val() === now || newData.parent().child('lastAward').child('SIGN_GUESTBOOK').val() === now || newData.parent().child('lastAward').child('DONATE').val() === now || newData.parent().child('lastAward').child('RELEASE_FISH').val() === now || newData.parent().child('lastAward').child('FEED_FISH').val() === now || newData.parent().child('lastAward').child('READ_SUTRA').val() === now || newData.parent().child('lastAward').child('DRAW_FORTUNE').val() === now || newData.parent().child('lastAward').child('HANG_WISH').val() === now || newData.parent().child('lastAward').child('REMOVE_SHOES').val() === now || newData.parent().child('lastAward').child('WASH_HANDS_FEET').val() === now || newData.parent().child('lastAward').child('BATHE_BUDDHA').val() === now || newData.parent().child('lastAward').child('PICK_PEACH').val() === now || newData.parent().child('lastAward').child('FEED_MONKEYS').val() === now)"
+        },
+        "lastAwardAt": {
+          ".validate": "newData.val() === now && (!data.exists() || now >= data.val() + 5000)"
+        },
+        "lastAward": {
+          "$activity": {
+            ".validate": "newData.val() === now && (!data.exists() || now >= data.val() + 60000) && root.child('players').child(auth.uid).child('currentActivity').val() === $activity && root.child('players').child(auth.uid).child('activityStartedAt').isNumber() && now >= root.child('players').child(auth.uid).child('activityStartedAt').val() + 5000 && (($activity === 'CHANTING' && (((!root.child('players').child(auth.uid).child('area').exists() || root.child('players').child(auth.uid).child('area').val() === 'COURTYARD') && root.child('players').child(auth.uid).child('positionX').val() >= 463 && root.child('players').child(auth.uid).child('positionX').val() <= 583 && root.child('players').child(auth.uid).child('positionY').val() >= 500 && root.child('players').child(auth.uid).child('positionY').val() <= 620) || ((!root.child('players').child(auth.uid).child('area').exists() || root.child('players').child(auth.uid).child('area').val() === 'COURTYARD') && root.child('players').child(auth.uid).child('positionX').val() >= 793 && root.child('players').child(auth.uid).child('positionX').val() <= 913 && root.child('players').child(auth.uid).child('positionY').val() >= 500 && root.child('players').child(auth.uid).child('positionY').val() <= 620) || (root.child('players').child(auth.uid).child('area').val() === 'LOTUS_GARDEN' && root.child('players').child(auth.uid).child('positionX').val() >= 1105 && root.child('players').child(auth.uid).child('positionX').val() <= 1265 && root.child('players').child(auth.uid).child('positionY').val() >= 360 && root.child('players').child(auth.uid).child('positionY').val() <= 520) || (root.child('players').child(auth.uid).child('area').val() === 'MAIN_HALL' && root.child('players').child(auth.uid).child('positionX').val() >= 568 && root.child('players').child(auth.uid).child('positionX').val() <= 808 && root.child('players').child(auth.uid).child('positionY').val() >= 390 && root.child('players').child(auth.uid).child('positionY').val() <= 630))) || ($activity === 'OFFER_INCENSE' && (((!root.child('players').child(auth.uid).child('area').exists() || root.child('players').child(auth.uid).child('area').val() === 'COURTYARD') && root.child('players').child(auth.uid).child('positionX').val() >= 615 && root.child('players').child(auth.uid).child('positionX').val() <= 765 && root.child('players').child(auth.uid).child('positionY').val() >= 470 && root.child('players').child(auth.uid).child('positionY').val() <= 620) || (root.child('players').child(auth.uid).child('area').val() === 'MAIN_HALL' && root.child('players').child(auth.uid).child('positionX').val() >= 598 && root.child('players').child(auth.uid).child('positionX').val() <= 778 && root.child('players').child(auth.uid).child('positionY').val() >= 230 && root.child('players').child(auth.uid).child('positionY').val() <= 410) || (root.child('players').child(auth.uid).child('area').val() === 'BELL_TOWER' && root.child('players').child(auth.uid).child('positionX').val() >= 830 && root.child('players').child(auth.uid).child('positionX').val() <= 970 && root.child('players').child(auth.uid).child('positionY').val() >= 400 && root.child('players').child(auth.uid).child('positionY').val() <= 540) || (root.child('players').child(auth.uid).child('area').val() === 'ANCESTOR_HALL' && root.child('players').child(auth.uid).child('positionX').val() >= 598 && root.child('players').child(auth.uid).child('positionX').val() <= 778 && root.child('players').child(auth.uid).child('positionY').val() >= 240 && root.child('players').child(auth.uid).child('positionY').val() <= 420) || (root.child('players').child(auth.uid).child('area').val() === 'QUAN_AM_HILL' && root.child('players').child(auth.uid).child('positionX').val() >= 598 && root.child('players').child(auth.uid).child('positionX').val() <= 778 && root.child('players').child(auth.uid).child('positionY').val() >= 240 && root.child('players').child(auth.uid).child('positionY').val() <= 420))) || ($activity === 'LISTENING' && (((!root.child('players').child(auth.uid).child('area').exists() || root.child('players').child(auth.uid).child('area').val() === 'COURTYARD') && root.child('players').child(auth.uid).child('positionX').val() >= 463 && root.child('players').child(auth.uid).child('positionX').val() <= 583 && root.child('players').child(auth.uid).child('positionY').val() >= 500 && root.child('players').child(auth.uid).child('positionY').val() <= 620) || ((!root.child('players').child(auth.uid).child('area').exists() || root.child('players').child(auth.uid).child('area').val() === 'COURTYARD') && root.child('players').child(auth.uid).child('positionX').val() >= 793 && root.child('players').child(auth.uid).child('positionX').val() <= 913 && root.child('players').child(auth.uid).child('positionY').val() >= 500 && root.child('players').child(auth.uid).child('positionY').val() <= 620) || (root.child('players').child(auth.uid).child('area').val() === 'LOTUS_GARDEN' && root.child('players').child(auth.uid).child('positionX').val() >= 1105 && root.child('players').child(auth.uid).child('positionX').val() <= 1265 && root.child('players').child(auth.uid).child('positionY').val() >= 360 && root.child('players').child(auth.uid).child('positionY').val() <= 520) || (root.child('players').child(auth.uid).child('area').val() === 'MAIN_HALL' && root.child('players').child(auth.uid).child('positionX').val() >= 568 && root.child('players').child(auth.uid).child('positionX').val() <= 808 && root.child('players').child(auth.uid).child('positionY').val() >= 390 && root.child('players').child(auth.uid).child('positionY').val() <= 630) || (root.child('players').child(auth.uid).child('area').val() === 'ANCESTOR_HALL' && root.child('players').child(auth.uid).child('positionX').val() >= 930 && root.child('players').child(auth.uid).child('positionX').val() <= 1090 && root.child('players').child(auth.uid).child('positionY').val() >= 460 && root.child('players').child(auth.uid).child('positionY').val() <= 620) || (root.child('players').child(auth.uid).child('area').val() === 'BAMBOO_GROVE' && root.child('players').child(auth.uid).child('positionX').val() >= 830 && root.child('players').child(auth.uid).child('positionX').val() <= 970 && root.child('players').child(auth.uid).child('positionY').val() >= 510 && root.child('players').child(auth.uid).child('positionY').val() <= 650) || (root.child('players').child(auth.uid).child('area').val() === 'SUTRA_LIBRARY' && root.child('players').child(auth.uid).child('positionX').val() >= 230 && root.child('players').child(auth.uid).child('positionX').val() <= 370 && root.child('players').child(auth.uid).child('positionY').val() >= 550 && root.child('players').child(auth.uid).child('positionY').val() <= 690))) || ($activity === 'OFFERING' && (((!root.child('players').child(auth.uid).child('area').exists() || root.child('players').child(auth.uid).child('area').val() === 'COURTYARD') && root.child('players').child(auth.uid).child('positionX').val() >= 578 && root.child('players').child(auth.uid).child('positionX').val() <= 798 && root.child('players').child(auth.uid).child('positionY').val() >= 360 && root.child('players').child(auth.uid).child('positionY').val() <= 580) || (root.child('players').child(auth.uid).child('area').val() === 'MAIN_HALL' && root.child('players').child(auth.uid).child('positionX').val() >= 598 && root.child('players').child(auth.uid).child('positionX').val() <= 778 && root.child('players').child(auth.uid).child('positionY').val() >= 230 && root.child('players').child(auth.uid).child('positionY').val() <= 410))) || ($activity === 'WOODEN_FISH' && (((!root.child('players').child(auth.uid).child('area').exists() || root.child('players').child(auth.uid).child('area').val() === 'COURTYARD') && root.child('players').child(auth.uid).child('positionX').val() >= 785 && root.child('players').child(auth.uid).child('positionX').val() <= 955 && root.child('players').child(auth.uid).child('positionY').val() >= 307 && root.child('players').child(auth.uid).child('positionY').val() <= 477) || (root.child('players').child(auth.uid).child('area').val() === 'MAIN_HALL' && root.child('players').child(auth.uid).child('positionX').val() >= 976 && root.child('players').child(auth.uid).child('positionX').val() <= 1116 && root.child('players').child(auth.uid).child('positionY').val() >= 260 && root.child('players').child(auth.uid).child('positionY').val() <= 400))) || ($activity === 'MEDITATION' && (((!root.child('players').child(auth.uid).child('area').exists() || root.child('players').child(auth.uid).child('area').val() === 'COURTYARD') && root.child('players').child(auth.uid).child('positionX').val() >= 463 && root.child('players').child(auth.uid).child('positionX').val() <= 583 && root.child('players').child(auth.uid).child('positionY').val() >= 500 && root.child('players').child(auth.uid).child('positionY').val() <= 620) || ((!root.child('players').child(auth.uid).child('area').exists() || root.child('players').child(auth.uid).child('area').val() === 'COURTYARD') && root.child('players').child(auth.uid).child('positionX').val() >= 793 && root.child('players').child(auth.uid).child('positionX').val() <= 913 && root.child('players').child(auth.uid).child('positionY').val() >= 500 && root.child('players').child(auth.uid).child('positionY').val() <= 620) || (root.child('players').child(auth.uid).child('area').val() === 'LOTUS_GARDEN' && root.child('players').child(auth.uid).child('positionX').val() >= 230 && root.child('players').child(auth.uid).child('positionX').val() <= 370 && root.child('players').child(auth.uid).child('positionY').val() >= 302 && root.child('players').child(auth.uid).child('positionY').val() <= 442) || (root.child('players').child(auth.uid).child('area').val() === 'MAIN_HALL' && root.child('players').child(auth.uid).child('positionX').val() >= 568 && root.child('players').child(auth.uid).child('positionX').val() <= 808 && root.child('players').child(auth.uid).child('positionY').val() >= 390 && root.child('players').child(auth.uid).child('positionY').val() <= 630) || (root.child('players').child(auth.uid).child('area').val() === 'ANCESTOR_HALL' && root.child('players').child(auth.uid).child('positionX').val() >= 930 && root.child('players').child(auth.uid).child('positionX').val() <= 1090 && root.child('players').child(auth.uid).child('positionY').val() >= 460 && root.child('players').child(auth.uid).child('positionY').val() <= 620) || (root.child('players').child(auth.uid).child('area').val() === 'BAMBOO_GROVE' && root.child('players').child(auth.uid).child('positionX').val() >= 230 && root.child('players').child(auth.uid).child('positionX').val() <= 370 && root.child('players').child(auth.uid).child('positionY').val() >= 250 && root.child('players').child(auth.uid).child('positionY').val() <= 390) || (root.child('players').child(auth.uid).child('area').val() === 'SUTRA_LIBRARY' && root.child('players').child(auth.uid).child('positionX').val() >= 230 && root.child('players').child(auth.uid).child('positionX').val() <= 370 && root.child('players').child(auth.uid).child('positionY').val() >= 550 && root.child('players').child(auth.uid).child('positionY').val() <= 690) || (root.child('players').child(auth.uid).child('area').val() === 'QUAN_AM_HILL' && root.child('players').child(auth.uid).child('positionX').val() >= 980 && root.child('players').child(auth.uid).child('positionX').val() <= 1120 && root.child('players').child(auth.uid).child('positionY').val() >= 430 && root.child('players').child(auth.uid).child('positionY').val() <= 570) || (root.child('players').child(auth.uid).child('area').val() === 'HOA_QUA_SON' && root.child('players').child(auth.uid).child('positionX').val() >= 598 && root.child('players').child(auth.uid).child('positionX').val() <= 778 && root.child('players').child(auth.uid).child('positionY').val() >= 330 && root.child('players').child(auth.uid).child('positionY').val() <= 510))) || ($activity === 'RING_BELL' && (((!root.child('players').child(auth.uid).child('area').exists() || root.child('players').child(auth.uid).child('area').val() === 'COURTYARD') && root.child('players').child(auth.uid).child('positionX').val() >= 200 && root.child('players').child(auth.uid).child('positionX').val() <= 350 && root.child('players').child(auth.uid).child('positionY').val() >= 270 && root.child('players').child(auth.uid).child('positionY').val() <= 420) || (root.child('players').child(auth.uid).child('area').val() === 'MAIN_HALL' && root.child('players').child(auth.uid).child('positionX').val() >= 260 && root.child('players').child(auth.uid).child('positionX').val() <= 400 && root.child('players').child(auth.uid).child('positionY').val() >= 260 && root.child('players').child(auth.uid).child('positionY').val() <= 400))) || ($activity === 'PRAYING' && (((!root.child('players').child(auth.uid).child('area').exists() || root.child('players').child(auth.uid).child('area').val() === 'COURTYARD') && root.child('players').child(auth.uid).child('positionX').val() >= 578 && root.child('players').child(auth.uid).child('positionX').val() <= 798 && root.child('players').child(auth.uid).child('positionY').val() >= 360 && root.child('players').child(auth.uid).child('positionY').val() <= 580) || (root.child('players').child(auth.uid).child('area').val() === 'MAIN_HALL' && root.child('players').child(auth.uid).child('positionX').val() >= 598 && root.child('players').child(auth.uid).child('positionX').val() <= 778 && root.child('players').child(auth.uid).child('positionY').val() >= 230 && root.child('players').child(auth.uid).child('positionY').val() <= 410) || (root.child('players').child(auth.uid).child('area').val() === 'BELL_TOWER' && root.child('players').child(auth.uid).child('positionX').val() >= 830 && root.child('players').child(auth.uid).child('positionX').val() <= 970 && root.child('players').child(auth.uid).child('positionY').val() >= 400 && root.child('players').child(auth.uid).child('positionY').val() <= 540) || (root.child('players').child(auth.uid).child('area').val() === 'ANCESTOR_HALL' && root.child('players').child(auth.uid).child('positionX').val() >= 598 && root.child('players').child(auth.uid).child('positionX').val() <= 778 && root.child('players').child(auth.uid).child('positionY').val() >= 240 && root.child('players').child(auth.uid).child('positionY').val() <= 420) || (root.child('players').child(auth.uid).child('area').val() === 'QUAN_AM_HILL' && root.child('players').child(auth.uid).child('positionX').val() >= 598 && root.child('players').child(auth.uid).child('positionX').val() <= 778 && root.child('players').child(auth.uid).child('positionY').val() >= 240 && root.child('players').child(auth.uid).child('positionY').val() <= 420) || (root.child('players').child(auth.uid).child('area').val() === 'HOA_QUA_SON' && root.child('players').child(auth.uid).child('positionX').val() >= 598 && root.child('players').child(auth.uid).child('positionX').val() <= 778 && root.child('players').child(auth.uid).child('positionY').val() >= 330 && root.child('players').child(auth.uid).child('positionY').val() <= 510))) || ($activity === 'RELEASE_LANTERN' && ((root.child('players').child(auth.uid).child('area').val() === 'LOTUS_GARDEN' && root.child('players').child(auth.uid).child('positionX').val() >= 680 && root.child('players').child(auth.uid).child('positionX').val() <= 840 && root.child('players').child(auth.uid).child('positionY').val() >= 550 && root.child('players').child(auth.uid).child('positionY').val() <= 710))) || ($activity === 'STRIKE_GREAT_BELL' && ((root.child('players').child(auth.uid).child('area').val() === 'BELL_TOWER' && root.child('players').child(auth.uid).child('positionX').val() >= 470 && root.child('players').child(auth.uid).child('positionX').val() <= 650 && root.child('players').child(auth.uid).child('positionY').val() >= 380 && root.child('players').child(auth.uid).child('positionY').val() <= 560))) || ($activity === 'OFFER_TEA' && ((root.child('players').child(auth.uid).child('area').val() === 'ANCESTOR_HALL' && root.child('players').child(auth.uid).child('positionX').val() >= 280 && root.child('players').child(auth.uid).child('positionX').val() <= 440 && root.child('players').child(auth.uid).child('positionY').val() >= 460 && root.child('players').child(auth.uid).child('positionY').val() <= 620))) || ($activity === 'WALKING_MEDITATION' && ((root.child('players').child(auth.uid).child('area').val() === 'BAMBOO_GROVE' && root.child('players').child(auth.uid).child('positionX').val() >= 578 && root.child('players').child(auth.uid).child('positionX').val() <= 798 && root.child('players').child(auth.uid).child('positionY').val() >= 310 && root.child('players').child(auth.uid).child('positionY').val() <= 530))) || ($activity === 'SIGN_GUESTBOOK' && ((root.child('players').child(auth.uid).child('area').val() === 'TAM_QUAN' && root.child('players').child(auth.uid).child('positionX').val() >= 400 && root.child('players').child(auth.uid).child('positionX').val() <= 540 && root.child('players').child(auth.uid).child('positionY').val() >= 580 && root.child('players').child(auth.uid).child('positionY').val() <= 720))) || ($activity === 'DONATE' && ((root.child('players').child(auth.uid).child('area').val() === 'TAM_QUAN' && root.child('players').child(auth.uid).child('positionX').val() >= 836 && root.child('players').child(auth.uid).child('positionX').val() <= 976 && root.child('players').child(auth.uid).child('positionY').val() >= 580 && root.child('players').child(auth.uid).child('positionY').val() <= 720))) || ($activity === 'RELEASE_FISH' && ((root.child('players').child(auth.uid).child('area').val() === 'RELEASE_POND' && root.child('players').child(auth.uid).child('positionX').val() >= 628 && root.child('players').child(auth.uid).child('positionX').val() <= 748 && root.child('players').child(auth.uid).child('positionY').val() >= 445 && root.child('players').child(auth.uid).child('positionY').val() <= 565))) || ($activity === 'FEED_FISH' && ((root.child('players').child(auth.uid).child('area').val() === 'RELEASE_POND' && root.child('players').child(auth.uid).child('positionX').val() >= 920 && root.child('players').child(auth.uid).child('positionX').val() <= 1080 && root.child('players').child(auth.uid).child('positionY').val() >= 520 && root.child('players').child(auth.uid).child('positionY').val() <= 680))) || ($activity === 'READ_SUTRA' && ((root.child('players').child(auth.uid).child('area').val() === 'SUTRA_LIBRARY' && root.child('players').child(auth.uid).child('positionX').val() >= 608 && root.child('players').child(auth.uid).child('positionX').val() <= 768 && root.child('players').child(auth.uid).child('positionY').val() >= 505 && root.child('players').child(auth.uid).child('positionY').val() <= 665))) || ($activity === 'DRAW_FORTUNE' && ((root.child('players').child(auth.uid).child('area').val() === 'MAIN_HALL' && root.child('players').child(auth.uid).child('positionX').val() >= 440 && root.child('players').child(auth.uid).child('positionX').val() <= 560 && root.child('players').child(auth.uid).child('positionY').val() >= 270 && root.child('players').child(auth.uid).child('positionY').val() <= 390))) || ($activity === 'HANG_WISH' && ((root.child('players').child(auth.uid).child('area').val() === 'QUAN_AM_HILL' && root.child('players').child(auth.uid).child('positionX').val() >= 300 && root.child('players').child(auth.uid).child('positionX').val() <= 460 && root.child('players').child(auth.uid).child('positionY').val() >= 350 && root.child('players').child(auth.uid).child('positionY').val() <= 510))) || ($activity === 'REMOVE_SHOES' && ((root.child('players').child(auth.uid).child('area').val() === 'TAM_QUAN' && root.child('players').child(auth.uid).child('positionX').val() >= 490 && root.child('players').child(auth.uid).child('positionX').val() <= 630 && root.child('players').child(auth.uid).child('positionY').val() >= 230 && root.child('players').child(auth.uid).child('positionY').val() <= 370))) || ($activity === 'WASH_HANDS_FEET' && ((root.child('players').child(auth.uid).child('area').val() === 'TAM_QUAN' && root.child('players').child(auth.uid).child('positionX').val() >= 746 && root.child('players').child(auth.uid).child('positionX').val() <= 886 && root.child('players').child(auth.uid).child('positionY').val() >= 230 && root.child('players').child(auth.uid).child('positionY').val() <= 370))) || ($activity === 'BATHE_BUDDHA' && (((!root.child('players').child(auth.uid).child('area').exists() || root.child('players').child(auth.uid).child('area').val() === 'COURTYARD') && root.child('players').child(auth.uid).child('positionX').val() >= 312 && root.child('players').child(auth.uid).child('positionX').val() <= 432 && root.child('players').child(auth.uid).child('positionY').val() >= 500 && root.child('players').child(auth.uid).child('positionY').val() <= 620))) || ($activity === 'PICK_PEACH' && ((root.child('players').child(auth.uid).child('area').val() === 'HOA_QUA_SON' && root.child('players').child(auth.uid).child('positionX').val() >= 250 && root.child('players').child(auth.uid).child('positionX').val() <= 410 && root.child('players').child(auth.uid).child('positionY').val() >= 420 && root.child('players').child(auth.uid).child('positionY').val() <= 580))) || ($activity === 'FEED_MONKEYS' && ((root.child('players').child(auth.uid).child('area').val() === 'HOA_QUA_SON' && root.child('players').child(auth.uid).child('positionX').val() >= 945 && root.child('players').child(auth.uid).child('positionX').val() <= 1115 && root.child('players').child(auth.uid).child('positionY').val() >= 415 && root.child('players').child(auth.uid).child('positionY').val() <= 585))))"
+          }
+        },
+        "day": {
+          ".validate": "newData.hasChildren(['index','earned'])",
+          "index": {
+            ".validate": "newData.isNumber() && newData.val() % 1 === 0 && newData.val() * 86400000 <= now + 25200000 && (newData.val() + 1) * 86400000 > now + 25200000"
+          },
+          "earned": {
+            ".validate": "newData.isNumber() && newData.val() <= 108 && newData.val() - ((data.exists() && data.parent().child('index').val() === newData.parent().child('index').val()) ? data.val() : 0) === newData.parent().parent().child('total').val() - (data.parent().parent().child('total').exists() ? data.parent().parent().child('total').val() : 0)"
+          },
+          "$other": {
+            ".validate": false
+          }
+        },
+        "streak": {
+          ".validate": "newData.hasChildren(['count','lastIndex'])",
+          "count": {
+            ".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= (data.exists() ? data.val() : 0) + 1"
+          },
+          "lastIndex": {
+            ".validate": "newData.val() === newData.parent().parent().child('day').child('index').val()"
+          },
+          "$other": {
+            ".validate": false
+          }
+        },
+        "$other": {
+          ".validate": false
+        }
+      }
+    },
+    "templeMerit": {
+      ".read": "auth != null",
+      "total": {
+        ".write": "auth != null",
+        ".validate": "newData.isNumber() && newData.val() > (data.exists() ? data.val() : 0) && newData.val() - (data.exists() ? data.val() : 0) === newData.parent().parent().child('merit').child(auth.uid).child('total').val() - (root.child('merit').child(auth.uid).child('total').exists() ? root.child('merit').child(auth.uid).child('total').val() : 0)"
+      }
+    },
+    "notes": {
+      ".read": "auth != null",
+      "$kind": {
+        ".validate": "$kind === 'guestbook' || $kind === 'wish'",
+        "$id": {
+          ".write": "auth != null && !data.exists() && newData.child('sessionId').val() === auth.uid && newData.parent().parent().parent().child('notesThrottle').child(auth.uid).child($kind).val() === now",
+          ".validate": "newData.hasChildren(['sessionId','displayName','text','createdAt'])",
+          "sessionId": {
+            ".validate": "newData.isString()"
+          },
+          "displayName": {
+            ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 24"
+          },
+          "text": {
+            ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 80"
+          },
+          "createdAt": {
+            ".validate": "newData.val() === now"
+          },
+          "$other": {
+            ".validate": false
+          }
+        }
+      }
+    },
+    "notesThrottle": {
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        "$kind": {
+          ".write": "auth != null && auth.uid === $uid",
+          ".validate": "($kind === 'guestbook' || $kind === 'wish') && newData.val() === now && (!data.exists() || newData.val() >= data.val() + 60000)"
+        }
       }
     }
   }

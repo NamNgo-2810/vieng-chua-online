@@ -16,5 +16,7 @@ export default defineConfig({
     environment: "node",
     include: ["tests/**/*.test.ts"],
     globals: true,
+    // Unit tests use the in-browser demo backend (no server, no Firebase).
+    env: { NEXT_PUBLIC_BACKEND: "offline" },
   },
 });

@@ -32,8 +32,10 @@ const LAYOUT: DecorSpec[] = [
   { prop: "altar", fx: 0.5, fy: 0.44, scale: 0.42, label: "Ban thờ" },
   { prop: "incense", fx: 0.5, fy: 0.58, scale: 0.32, animate: "smoke", label: "Lư hương" },
   { prop: "bell", fx: 0.2, fy: 0.46, scale: 0.4, animate: "sway", label: "Chuông" },
-  { prop: "woodfish", fx: 0.8, fy: 0.46, scale: 0.4, label: "Mõ" },
-  { prop: "tray", fx: 0.5, fy: 0.72, scale: 0.28, floor: true, label: "Mâm lễ" },
+  // On the hall terrace, at the WOODEN_FISH ritual spot (config/ritual-spots.ts).
+  // (The painted tables already carry fruit trays, so no tray decor here: the
+  // old one sat on top of the painted incense burner.)
+  { prop: "woodfish", fx: 870 / 1376, fy: 0.5, scale: 0.22, label: "Mõ" },
   { prop: "cushion", fx: 0.38, fy: 0.74, scale: 0.42, floor: true, label: "Bồ đoàn" },
   { prop: "cushion", fx: 0.62, fy: 0.74, scale: 0.42, floor: true, label: "Bồ đoàn" },
 ];

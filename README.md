@@ -40,14 +40,30 @@ a Vercel serverless route (free-tier friendly). Full planning lives in
 
 ```bash
 npm install
-cp .env.example .env.local   # fill in Firebase values (optional for offline)
-npm run assets:prep          # slice the Gemini sheets into game assets
-npm run dev                  # http://localhost:3000
+npm run build
+npm run start:lan            # prints the addresses friends can open
 ```
 
-Without `.env.local`, the app runs in **offline mode** (single player + ambient
-demo monks) — good for checking visuals. For real multiplayer, set the
-`NEXT_PUBLIC_FIREBASE_*` values. Google Sheets history is optional.
+Without Firebase settings the app runs in **local mode**: this machine's
+server holds the shared temple, and friends on the same Wi-Fi/LAN join by
+opening `http://<this machine's IP>:3000` (printed at start). No accounts or
+cloud services are needed.
+
+- **Saved data** (in `./data/`, git-ignored):
+  - `temple.json` — temple merit, each browser's merit and streak, recent chat
+  - `activity-logs.csv` — every JOIN / ACTIVITY_CHANGE / LEAVE (same columns as the Sheets "Activity Logs")
+  - `visitors.csv` — one row per visit with joined/left/duration (same as the Sheets "Visitors")
+- **Windows firewall:** the first time, allow Node.js on *Private networks*,
+  or friends will not be able to connect.
+- The server checks every action (ritual places, merit, chat limits, gates),
+  so a friend's browser cannot fake merit.
+- A browser's merit is tied to that browser (kept in its local storage);
+  clearing site data starts it fresh.
+- `npm run dev:lan` does the same with the dev server (hot reload).
+
+To use **Firebase** instead (internet multiplayer), copy `.env.example` to
+`.env.local` and fill in `NEXT_PUBLIC_FIREBASE_*`. `NEXT_PUBLIC_BACKEND` can
+force `local`, `firebase` or `offline` (single-player demo).
 
 ## Scripts
 
@@ -56,8 +72,11 @@ demo monks) — good for checking visuals. For real multiplayer, set the
 | `npm run dev` | Next.js dev server |
 | `npm run build` | Production build |
 | `npm run start` | Serve the production build |
+| `npm run start:lan` | Serve the build to your network (local mode); prints LAN addresses |
+| `npm run dev:lan` | Dev server reachable from your network |
+| `npm run rules:gen` | Regenerate the config-derived parts of `database.rules.json` |
 | `npm run typecheck` | `tsc --noEmit` |
-| `npm test` | Run the Vitest suite (50 tests) |
+| `npm test` | Run the Vitest suite |
 | `npm run test:watch` | Vitest in watch mode |
 | `npm run assets:prep` | Slice `/assets/*.png` sheets → `/public/assets` + manifest |
 
@@ -81,7 +100,7 @@ reconnect, mobile touch — follow
 
 ## Configuration
 
-### Firebase (required for multiplayer)
+### Firebase (optional — internet multiplayer)
 1. Create a Firebase project; enable **Anonymous Authentication** and the
    **Realtime Database**.
 2. Copy the web config into `.env.local` (`NEXT_PUBLIC_FIREBASE_*`).
@@ -90,7 +109,7 @@ reconnect, mobile touch — follow
 
 Firebase **Spark (free)** is enough — anonymous auth + RTDB only.
 
-### Google Sheets history (optional)
+### Google Sheets history (optional — otherwise CSV files in `./data/`)
 See [`docs/11-deployment-guide.md`](./docs/11-deployment-guide.md) §4 for the
 service-account + spreadsheet setup. Credentials are server-only and never
 reach the browser.

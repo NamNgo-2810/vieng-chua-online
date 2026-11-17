@@ -12,6 +12,16 @@ export function setVirtualInput(x: number, y: number) {
   virtualInput.y = Math.max(-1, Math.min(1, y));
 }
 
+/**
+ * UI focus shared with the scene: while the player types in the chat box the
+ * scene ignores movement/E and stops swallowing WASD/arrow/E key presses.
+ */
+export const uiFocus = { typing: false };
+
+export function setTyping(typing: boolean) {
+  uiFocus.typing = typing;
+}
+
 export function clearVirtualInput() {
   virtualInput.x = 0;
   virtualInput.y = 0;

@@ -1,6 +1,7 @@
 import * as Phaser from "phaser";
 import { TempleScene } from "./TempleScene";
 import { TEMPLE } from "./world";
+import { AREA_IDS } from "@/config/areas";
 
 /**
  * Probe whether this environment can actually compile AND link a trivial WebGL
@@ -82,6 +83,7 @@ export function createGame(parent: HTMLElement): Phaser.Game {
         target: typeof window !== "undefined" ? window : undefined,
       },
     },
-    scene: [TempleScene],
+    // One scene per area; the courtyard (first) starts, the others on demand.
+    scene: AREA_IDS.map((a) => new TempleScene(a)),
   });
 }

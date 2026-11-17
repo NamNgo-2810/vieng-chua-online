@@ -7,6 +7,12 @@ import VisitorList from "./VisitorList";
 import PlayerDock from "./PlayerDock";
 import ConnectionBanner from "./ConnectionBanner";
 import ActivityToast from "./ActivityToast";
+import MilestoneToast from "./MilestoneToast";
+import NoteComposer from "./NoteComposer";
+import NotesBoard from "./NotesBoard";
+import RevealCard from "./RevealCard";
+import NoticeToast from "./NoticeToast";
+import CloudMenu from "./CloudMenu";
 import AudioController from "./AudioController";
 import TouchControls from "./TouchControls";
 
@@ -35,6 +41,12 @@ export default function TempleScreen() {
         <PlayerDock />
         <ConnectionBanner />
         <ActivityToast />
+        <MilestoneToast />
+        <NotesBoard />
+        <RevealCard />
+        <NoticeToast />
+        <CloudMenu />
+        <NoteComposer />
         <TouchControls />
       </div>
 

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { historyEventSchema } from "@/lib/validation";
-import { recordHistory } from "@/lib/sheets";
+import { recordHistory, isSheetsConfigured } from "@/lib/sheets";
+import { recordLocalHistory } from "@/server/csv-history";
 import { RateLimiter } from "@/lib/rate-limit";
 
 // This route needs the Node runtime (googleapis uses Node APIs).
@@ -12,7 +13,8 @@ export const runtime = "nodejs";
 const limiter = new RateLimiter({ capacity: 20, refillPerSec: 2 });
 
 /**
- * POST /api/history — records a visitor history event to Google Sheets.
+ * POST /api/history — records a visitor history event to Google Sheets, or,
+ * when Sheets is not configured (running locally), to CSV files under data/.
  *
  * Security: requires a shared secret (header `x-history-secret` or `secret` in
  * the body for sendBeacon). Validates + sanitizes the payload server-side.
@@ -55,7 +57,8 @@ export async function POST(req: Request) {
   }
 
   // Record (best-effort). Swallow Sheets failures so gameplay is never blocked.
-  const written = await recordHistory(parsed.data).catch((err) => {
+  const record = isSheetsConfigured() ? recordHistory : recordLocalHistory;
+  const written = await record(parsed.data).catch((err) => {
     console.error("[history] unexpected error:", err);
     return false;
   });

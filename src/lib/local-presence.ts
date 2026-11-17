@@ -9,11 +9,15 @@
  * labels it as offline.
  */
 
+import { resolveAppearance, type AppearanceId } from "@/config/appearances";
 import type { Player, Direction } from "@/lib/types";
 import type { ActivityId } from "@/config/activities";
+import type { AreaId } from "@/config/areas";
+import type { EmoteId } from "@/config/emotes";
+import { purityFlagFor } from "@/config/purity";
 import { DEFAULT_ACTIVITY, canPerform } from "@/config/permissions";
 import type { IPresence, JoinOptions, PresenceCallbacks } from "./presence-types";
-import { TEMPLE } from "@/game/world";
+import { SPOTS_BY_ID, type SpotId } from "@/config/ritual-spots";
 
 const LOCAL_ID = "local-you";
 
@@ -24,27 +28,27 @@ function demoVisitors(): Record<string, Player> {
     id: string,
     name: string,
     role: Player["role"],
+    appearance: AppearanceId,
     activity: ActivityId,
-    fx: number,
-    fy: number
+    spot: SpotId
   ): Player => ({
     sessionId: id,
     displayName: name,
     role,
+    appearance,
     currentActivity: activity,
-    positionX: TEMPLE.width * fx,
-    positionY: TEMPLE.height * fy,
-    direction: "down",
+    positionX: SPOTS_BY_ID[spot].standX,
+    positionY: SPOTS_BY_ID[spot].standY,
+    direction: SPOTS_BY_ID[spot].facing,
     joinedAt: now,
     lastActiveAt: now,
     isOnline: true,
   });
-  // Positioned to sit on the two meditation cushions (decor fx 0.38 / 0.62,
-  // fy 0.74). Characters anchor bottom-center, so place their base just inside
-  // the cushion top for a "seated on cushion" look.
+  // Seated on the two cushions, at their ritual spots' stand points.
   return {
-    "demo-monk": make("demo-monk", "Sư thầy", "HOA_THUONG", "CHANTING", 0.38, 0.75),
-    "demo-monk-2": make("demo-monk-2", "Sư huynh", "HOA_THUONG", "OFFER_INCENSE", 0.62, 0.75),
+    // One of each kind of look, so offline mode shows the cast.
+    "demo-abbot": make("demo-abbot", "Thích Trí Tâm", "TRU_TRI", "ABBOT", "CHANTING", "CUSHION_LEFT"),
+    "demo-visitor": make("demo-visitor", "Cô Lan", "KHACH_THAP_PHUONG", "LAY_WOMAN", "MEDITATION", "CUSHION_RIGHT"),
   };
 }
 
@@ -69,7 +73,10 @@ export class LocalPresence implements IPresence {
       sessionId: LOCAL_ID,
       displayName: opts.displayName,
       role: opts.role,
+      appearance: resolveAppearance(opts.role, opts.appearance),
+      area: opts.area ?? "COURTYARD",
       currentActivity: DEFAULT_ACTIVITY,
+      activityStartedAt: now,
       positionX: opts.spawnX,
       positionY: opts.spawnY,
       direction: "down",
@@ -82,9 +89,9 @@ export class LocalPresence implements IPresence {
     this.cbs.onConnection("online");
     this.emit();
 
-    // Gentle ambient drift for the demo monk so the scene feels alive.
+    // Gentle ambient drift for the demo abbot so the scene feels alive.
     this.wanderTimer = setInterval(() => {
-      const monk = this.players["demo-monk"];
+      const monk = this.players["demo-abbot"];
       if (!monk) return;
       monk.direction = (["left", "right", "down"] as Direction[])[Math.floor(Math.random() * 3)];
       this.emit();
@@ -95,7 +102,24 @@ export class LocalPresence implements IPresence {
     if (!this.local) return false;
     if (!canPerform(this.local.role, activity)) return false;
     this.local.currentActivity = activity;
+    this.local.activityStartedAt = Date.now();
+    const flag = purityFlagFor(activity);
+    if (flag) this.local[flag] = true;
     this.local.lastActiveAt = Date.now();
+    this.emit();
+    return true;
+  }
+
+  async changeArea(area: AreaId, x: number, y: number, dir: Direction): Promise<boolean> {
+    if (!this.local) return false;
+    Object.assign(this.local, { area, positionX: x, positionY: y, direction: dir, currentActivity: "WALKING", activityStartedAt: Date.now() });
+    this.emit();
+    return true;
+  }
+
+  async emote(emote: EmoteId): Promise<boolean> {
+    if (!this.local) return false;
+    Object.assign(this.local, { emote, emoteAt: Date.now() });
     this.emit();
     return true;
   }
@@ -112,8 +136,13 @@ export class LocalPresence implements IPresence {
     return this.local ? LOCAL_ID : null;
   }
 
+  /**
+   * A snapshot copy of the local player. Never the internal object: the store
+   * and React compare by reference, so handing out the mutable original made
+   * the dock miss activity changes.
+   */
   getLocal(): Player | null {
-    return this.local;
+    return this.local ? { ...this.local } : null;
   }
 
   async leave(): Promise<void> {
@@ -127,7 +156,10 @@ export class LocalPresence implements IPresence {
     this.local = null;
   }
 
+  /** Broadcast fresh copies so subscribers see changes by reference. */
   private emit() {
-    this.cbs.onPlayers({ ...this.players });
+    const snapshot: Record<string, Player> = {};
+    for (const [id, p] of Object.entries(this.players)) snapshot[id] = { ...p };
+    this.cbs.onPlayers(snapshot);
   }
 }

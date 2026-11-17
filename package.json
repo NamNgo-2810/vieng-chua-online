@@ -11,7 +11,10 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "assets:prep": "tsx scripts/prep-assets.ts"
+    "assets:prep": "tsx scripts/prep-assets.ts",
+    "rules:gen": "tsx scripts/gen-rules.ts",
+    "dev:lan": "tsx scripts/lan-info.ts && next dev -H 0.0.0.0",
+    "start:lan": "tsx scripts/lan-info.ts && next start -H 0.0.0.0"
   },
   "dependencies": {
     "firebase": "^11.1.0",

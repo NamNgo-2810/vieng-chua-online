@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useGameStore } from "@/state/store";
 import { ROLES } from "@/config/roles";
 import { ACTIVITIES } from "@/config/activities";
+import { AREAS, areaOf } from "@/config/areas";
 
 export default function VisitorList() {
   const players = useGameStore((s) => s.players);
@@ -13,17 +14,20 @@ export default function VisitorList() {
   const online = Object.values(players).filter((p) => p.isOnline);
 
   return (
-    <div className="pointer-events-auto absolute right-3 top-20 bottom-28 flex max-h-[70vh] w-60 flex-col">
+    // Sized to its content (capped at half the screen) instead of stretching
+    // top-to-bottom, so the right side of the temple (pond, garden) stays in
+    // view; collapsible at every screen size.
+    <div className="pointer-events-auto absolute right-3 top-20 flex max-h-[50vh] w-60 flex-col">
       <button
         onClick={() => setOpen((o) => !o)}
-        className="mb-1 self-end rounded-lg bg-temple-ink/80 px-3 py-1 text-xs text-temple-sand md:hidden"
+        className="mb-1 self-end rounded-lg bg-temple-ink/80 px-3 py-1 text-xs text-temple-sand"
         aria-expanded={open}
       >
         {open ? "Ẩn danh sách" : `Khách (${online.length})`}
       </button>
 
       {open && (
-        <div className="flex-1 overflow-y-auto rounded-xl bg-temple-ink/80 p-3 text-temple-sand backdrop-blur">
+        <div className="min-h-0 overflow-y-auto rounded-xl bg-temple-ink/80 p-3 text-temple-sand backdrop-blur">
           <h2 className="mb-2 text-sm font-semibold">Khách trong chùa ({online.length})</h2>
           <ul className="space-y-1.5">
             {online.map((p) => (
@@ -42,6 +46,7 @@ export default function VisitorList() {
                 </div>
                 <div className="text-temple-sand/70">
                   {ACTIVITIES[p.currentActivity].label}
+                  {areaOf(p) !== "COURTYARD" && <span className="text-temple-gold/80"> · {AREAS[areaOf(p)].label}</span>}
                 </div>
               </li>
             ))}
